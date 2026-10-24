@@ -1,13 +1,21 @@
 import BookingExperience from "@/components/booking-experience";
 import { listAvailableSlots } from "@/lib/server/schedule";
+import { SERVICES } from "@/lib/services";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Book a time | Schedule-Bro",
-  description: "Choose an open appointment time with Schedule-Bro.",
+  title: "Schedule-Bro Barbershop | Book a chair",
+  description: "Choose a barber service and book your time in Skopje.",
 };
 
 export default function HomePage() {
-  return <BookingExperience initialSlots={listAvailableSlots()} />;
+  const initialServiceId = SERVICES[0].id;
+
+  return (
+    <BookingExperience
+      initialServiceId={initialServiceId}
+      initialSlots={listAvailableSlots(initialServiceId)}
+    />
+  );
 }

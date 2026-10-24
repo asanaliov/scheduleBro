@@ -12,6 +12,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const booking = bookSlot(
       parsed.data.slotId,
+      parsed.data.serviceId,
       parsed.data.visitorName,
       parsed.data.visitorEmail,
     );
@@ -21,6 +22,9 @@ export async function POST(request: Request): Promise<Response> {
         data: {
           slot: booking.slot,
           visitorName: booking.visitorName,
+          serviceId: booking.serviceId,
+          serviceDurationMinutes: booking.serviceDurationMinutes,
+          priceMkd: booking.priceMkd,
         },
       },
       { status: 201, headers: { "Cache-Control": "no-store" } },

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { PublicSlot } from "@/lib/types";
+import { SERVICES, formatServicePrice, type ServiceId } from "@/lib/services";
 import { formatScheduleDate, formatScheduleTime } from "@/lib/time";
 
 type ApiError = {
@@ -11,22 +12,32 @@ type ApiError = {
 type BookingConfirmation = {
   visitorName: string;
   slot: PublicSlot;
+  serviceId: ServiceId;
+  serviceDurationMinutes: number;
+  priceMkd: number;
 };
 
 type Props = {
   initialSlots: PublicSlot[];
+  initialServiceId: ServiceId;
 };
 
-export default function BookingExperience({ initialSlots }: Props) {
+export default function BookingExperience({
+  initialSlots,
+  initialServiceId,
+}: Props) {
   const [slots, setSlots] = useState(initialSlots);
+  const [serviceId, setServiceId] = useState(initialServiceId);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [visitorName, setVisitorName] = useState("");
   const [visitorEmail, setVisitorEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [message, setMessage] = useState("");
   const [messageIsError, setMessageIsError] = useState(false);
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
 
+  const selectedService = SERVICES.find((service) => service.id === serviceId)!;
   const selectedSlot = slots.find((slot) => slot.id === selectedSlotId) ?? null;
   const groupedSlots = useMemo(() => {
     const groups = new Map<string, PublicSlot[]>();
@@ -40,41 +51,62 @@ export default function BookingExperience({ initialSlots }: Props) {
   }, [slots]);
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
 
-    async function loadLatestAvailability() {
+    async function loadAvailability() {
+      setLoadingAvailability(true);
+
       try {
-        const response = await fetch("/api/slots", { cache: "no-store" });
+        const response = await fetch(
+          `/api/slots?serviceId=${encodeURIComponent(serviceId)}`,
+          { cache: "no-store", signal: controller.signal },
+        );
+
         if (!response.ok) {
           throw new Error("Availability could not be refreshed.");
         }
-        const result = (await response.json()) as { data: PublicSlot[] };
 
-        if (active) {
-          setSlots(result.data);
-        }
+        const result = (await response.json()) as { data: PublicSlot[] };
+        setSlots(result.data);
       } catch {
-        if (active) {
+        if (!controller.signal.aborted) {
           setMessage("Availability could not be refreshed. Please try again.");
           setMessageIsError(true);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoadingAvailability(false);
         }
       }
     }
 
-    void loadLatestAvailability();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    void loadAvailability();
+    return () => controller.abort();
+  }, [serviceId]);
 
   async function refreshAvailability(): Promise<void> {
-    const response = await fetch("/api/slots", { cache: "no-store" });
+    const response = await fetch(
+      `/api/slots?serviceId=${encodeURIComponent(serviceId)}`,
+      { cache: "no-store" },
+    );
+
     if (!response.ok) {
       throw new Error("Availability could not be refreshed.");
     }
+
     const result = (await response.json()) as { data: PublicSlot[] };
     setSlots(result.data);
+  }
+
+  function chooseService(nextServiceId: ServiceId) {
+    if (nextServiceId === serviceId) return;
+
+    setServiceId(nextServiceId);
+    setSlots([]);
+    setSelectedSlotId(null);
+    setConfirmation(null);
+    setMessage("");
+    setMessageIsError(false);
   }
 
   async function submitBooking(event: FormEvent<HTMLFormElement>) {
@@ -96,6 +128,7 @@ export default function BookingExperience({ initialSlots }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slotId: selectedSlot.id,
+          serviceId,
           visitorName,
           visitorEmail,
         }),
@@ -104,7 +137,7 @@ export default function BookingExperience({ initialSlots }: Props) {
       if (!response.ok) {
         const result = (await response.json()) as ApiError;
         setMessage(
-          result.error?.message ?? "Your booking could not be completed.",
+          result.error?.message ?? "Your appointment could not be booked.",
         );
         setMessageIsError(true);
 
@@ -138,33 +171,71 @@ export default function BookingExperience({ initialSlots }: Props) {
   }
 
   return (
-    <main className="page-content">
+    <main className="page-content" id="main-content">
       <section className="page-intro">
-        <p className="eyebrow">Simple scheduling, sorted</p>
-        <h1>Find a time that works.</h1>
+        <p className="eyebrow">Schedule-Bro Barbershop · Skopje</p>
+        <h1>Good cuts. Easy booking.</h1>
         <p className="intro-copy">
-          Choose an open slot and book it in a few seconds. Times are shown in
-          Europe/Skopje.
+          One barber, considered cuts, and a time that works for you. Choose
+          your service to see the right openings.
         </p>
+      </section>
+
+      <section className="service-section" aria-labelledby="services-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">The menu</p>
+            <h2 id="services-title">Choose your service</h2>
+          </div>
+          <span className="timezone-note">Prices in MKD</span>
+        </div>
+
+        <div className="service-grid" role="group" aria-label="Choose a service">
+          {SERVICES.map((service, index) => {
+            const selected = service.id === serviceId;
+
+            return (
+              <button
+                aria-pressed={selected}
+                className={`service-card${selected ? " is-selected" : ""}`}
+                key={service.id}
+                onClick={() => chooseService(service.id)}
+                type="button"
+              >
+                <span className="service-number">0{index + 1}</span>
+                <span className="service-name">{service.name}</span>
+                <span className="service-description">{service.description}</span>
+                <span className="service-meta">
+                  <span>{service.durationMinutes} minutes</span>
+                  <strong>{formatServicePrice(service.priceMkd)}</strong>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <div className="booking-layout">
         <section className="panel slot-panel" aria-labelledby="available-title">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">Availability</p>
+              <p className="eyebrow">{selectedService.name}</p>
               <h2 id="available-title">Choose a time</h2>
             </div>
             <span className="count-label">
-              {slots.length} {slots.length === 1 ? "time" : "times"}
+              {slots.length} {slots.length === 1 ? "opening" : "openings"}
             </span>
           </div>
 
-          {groupedSlots.length === 0 ? (
+          {loadingAvailability ? (
+            <p className="availability-message" role="status">
+              Checking times for this service…
+            </p>
+          ) : groupedSlots.length === 0 ? (
             <div className="empty-state">
               <span className="empty-mark" aria-hidden="true">·</span>
-              <h3>No times available right now</h3>
-              <p>Please check back soon. New availability will appear here.</p>
+              <h3>No openings fit this service</h3>
+              <p>Try another service or check back when the barber adds time.</p>
             </div>
           ) : (
             <div className="slot-groups">
@@ -174,7 +245,6 @@ export default function BookingExperience({ initialSlots }: Props) {
                   <div className="slot-grid">
                     {daySlots.map((slot) => {
                       const selected = slot.id === selectedSlotId;
-                      const time = Date.parse(slot.startAt);
 
                       return (
                         <button
@@ -193,10 +263,10 @@ export default function BookingExperience({ initialSlots }: Props) {
                             className="slot-choice-time"
                             dateTime={slot.startAt}
                           >
-                            {formatScheduleTime(time)}
+                            {formatScheduleTime(Date.parse(slot.startAt))}
                           </time>
                           <span className="slot-choice-duration">
-                            {slot.durationMinutes} min
+                            {slot.durationMinutes} min window
                           </span>
                           <span className="slot-choice-action">
                             {selected ? "Selected" : "Choose"}
@@ -214,40 +284,48 @@ export default function BookingExperience({ initialSlots }: Props) {
         <aside className="panel booking-panel" aria-labelledby="booking-title">
           <div className="panel-heading booking-heading">
             <div>
-              <p className="eyebrow">Your details</p>
-              <h2 id="booking-title">Confirm your time</h2>
+              <p className="eyebrow">Your visit</p>
+              <h2 id="booking-title">Book the chair</h2>
             </div>
           </div>
 
           {confirmation ? (
             <div className="confirmation-state" role="status">
               <span className="confirmation-mark" aria-hidden="true">✓</span>
+              <p className="eyebrow">Appointment confirmed</p>
               <h3>You’re booked, {confirmation.visitorName}.</h3>
-              <p>
-                {formatScheduleDate(Date.parse(confirmation.slot.startAt))} at{" "}
+              <p className="confirmation-time">
+                {formatScheduleDate(Date.parse(confirmation.slot.startAt))}
+                <br />
                 {formatScheduleTime(Date.parse(confirmation.slot.startAt))}
               </p>
               <p className="muted-copy">
-                Your {confirmation.slot.durationMinutes}-minute time is confirmed.
+                {SERVICES.find((service) => service.id === confirmation.serviceId)?.name}
+                {" · "}
+                {confirmation.serviceDurationMinutes} minutes
+                {" · "}
+                {formatServicePrice(confirmation.priceMkd)}
               </p>
               <button
                 className="text-button"
                 onClick={() => setConfirmation(null)}
                 type="button"
               >
-                Book another time
+                Book another service
               </button>
             </div>
           ) : selectedSlot ? (
             <form className="booking-form" onSubmit={submitBooking}>
               <div className="selected-summary">
-                <span className="summary-label">Selected time</span>
-                <strong>
-                  {formatScheduleDate(Date.parse(selectedSlot.startAt))}
-                </strong>
+                <span className="summary-label">Appointment</span>
+                <strong>{selectedService.name}</strong>
                 <span>
-                  {formatScheduleTime(Date.parse(selectedSlot.startAt))} ·{" "}
-                  {selectedSlot.durationMinutes} minutes
+                  {formatScheduleDate(Date.parse(selectedSlot.startAt))} at{" "}
+                  {formatScheduleTime(Date.parse(selectedSlot.startAt))}
+                </span>
+                <span className="summary-service-details">
+                  {selectedService.durationMinutes} minutes ·{" "}
+                  {formatServicePrice(selectedService.priceMkd)}
                 </span>
               </div>
 
@@ -288,18 +366,20 @@ export default function BookingExperience({ initialSlots }: Props) {
               )}
 
               <button className="primary-button full-button" disabled={submitting}>
-                {submitting ? "Booking your time…" : "Book this time"}
+                {submitting ? "Booking your chair…" : "Confirm appointment"}
               </button>
               <p className="privacy-note">
-                Your contact details are only shared with the host.
+                Your contact details are shared with the barber for this booking.
               </p>
             </form>
           ) : (
             <div className="booking-prompt">
               <span className="prompt-number">01</span>
-              <h3>Pick a slot to get started</h3>
+              <h3>Pick a time to continue</h3>
               <p>
-                Once you choose a time, you can add your name and email here.
+                {selectedService.name} · {selectedService.durationMinutes} minutes
+                <br />
+                {formatServicePrice(selectedService.priceMkd)}
               </p>
             </div>
           )}
