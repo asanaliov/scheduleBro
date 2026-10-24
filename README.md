@@ -1,57 +1,47 @@
 # Schedule-Bro
 
-Schedule-Bro is a small scheduling app for publishing appointment availability and booking an open time.
+Schedule-Bro is a small appointment-booking app for a single barber in Skopje.
 
-Your time. Your slots. Sorted.
+Customers choose a service, select an opening, and book with their name and email.
+
+The barber publishes booking windows and sees customer and service details in a simple dashboard.
 
 ## Features
 
-- Hosts can publish future slots, view booking details, filter by status, and remove unbooked slots.
-- Visitors can browse and book an available slot with their name and email.
-- A slot becomes unavailable as soon as its booking succeeds.
-- The server rejects invalid input, past times, overlapping slots, and duplicate bookings.
-- All dates and times use the Europe/Skopje timezone.
-- The host dashboard has no authentication and is suitable only as a private MVP.
+- Fixed services: Haircut (30 minutes, MKD 900), Beard trim (20 minutes, MKD 500), and Haircut + beard (45 minutes, MKD 1,250).
+- Available times are filtered to windows long enough for the selected service.
+- Booking details and the service price and duration are stored in SQLite.
+- Database constraints prevent a booking window from being booked twice or overlapping another window.
+- All dates and times use Europe/Skopje.
+- The host dashboard has no authentication and is suitable only for a private MVP.
 
 ## Screenshots
 
-- Public booking page: _Screenshot placeholder. Add a real screenshot when one is available._
-- Host dashboard: _Screenshot placeholder. Add a real screenshot when one is available._
+- Customer booking page: _Screenshot placeholder. Add a real screenshot when one is available._
+- Barber desk: _Screenshot placeholder. Add a real screenshot when one is available._
 
 ## Technology
 
-- Next.js 16 with the App Router and Route Handlers.
+- Next.js 16 App Router and Route Handlers.
 - React 19 and TypeScript.
 - SQLite through the `better-sqlite3` Node driver.
-- Zod for API request validation.
-- Node's built-in test runner for API and business-rule tests.
-- Plain CSS for the interface.
+- Zod for request validation.
+- Node's built-in test runner.
+- Plain CSS for the responsive interface.
 
-## Architecture
+## How booking windows work
 
-The pages render their initial slot lists on the server and pass the small public or host view into interactive React components.
+The barber creates non-overlapping windows with a start time and length.
 
-The browser uses Route Handlers for listing, creating, deleting, and booking slots.
+A service can be booked only when its duration fits inside the chosen window.
 
-Database queries and scheduling rules live in `lib/server`.
+Each window is reserved in full after booking, even when the chosen service is shorter.
 
-The database stores UTC timestamps as integer milliseconds, while the application converts form dates from Europe/Skopje and formats all displayed times in that timezone.
+This intentionally leaves some unused time in exchange for keeping the schedule simple and making one-booking-per-window enforcement reliable.
 
-The timezone conversion rejects invalid dates and times that are skipped or repeated during daylight-saving changes.
+SQLite enforces a unique booking per window and a trigger prevents overlapping windows.
 
-Each booking has a unique `slot_id` and a foreign key to its slot, so SQLite cannot store two bookings for one slot or delete a booked slot.
-
-Booking runs its availability check and insert inside an immediate SQLite transaction, then returns HTTP 409 if the slot is already booked.
-
-An SQLite trigger and a transaction prevent overlapping availability slots.
-
-Public API responses include only slot details and do not include visitor names or email addresses.
-
-The host API returns visitor details because the dashboard displays them.
-
-The host dashboard has no login, so anyone who can reach it can change availability and view visitor details.
-
-Do not expose this MVP as a secure public host dashboard.
+The booking transaction checks the window, service duration, and booking write together.
 
 ## Local setup
 
@@ -75,69 +65,55 @@ Create the database tables:
 npm run db:migrate
 ```
 
-Start the application:
+Start the app:
 
 ```bash
 npm run dev
 ```
 
-The development command also checks and applies migrations before starting Next.js.
+The development command applies pending database migrations before Next.js starts.
 
-Open [http://localhost:3000](http://localhost:3000) for the visitor page.
+Open [http://localhost:3000](http://localhost:3000) to book an appointment.
 
-Open [http://localhost:3000/host](http://localhost:3000/host) for the host dashboard.
+Open [http://localhost:3000/host](http://localhost:3000/host) to manage booking windows.
 
-To add sample availability to an empty database, run:
+To add three example 60-minute windows to an empty database, run:
 
 ```bash
 npm run db:seed
 ```
 
-The seed command does nothing when the database already contains slots and never creates visitor records.
+The seed command does nothing if the database already contains windows.
 
-## Database configuration
+## Database
 
-`DATABASE_PATH` is the only required environment variable.
+`DATABASE_PATH` optionally sets the SQLite file location and defaults to `./data/schedule-bro.sqlite`.
 
-It defaults to `./data/schedule-bro.sqlite` relative to the project directory.
+The database directory is created automatically, and local database files are ignored by Git.
 
-The database directory is created automatically and local database files are ignored by Git.
+Migration files are stored in `db/migrations` and tracked in the database.
 
-Migrations are the SQL files in `db/migrations` and are tracked with a local migration table.
-
-Apply pending migrations with `npm run db:migrate`.
-
-To reset local data, stop the development server and run:
+To remove all local bookings and windows and recreate the schema, stop the app and run:
 
 ```bash
 npm run db:reset
 ```
 
-Reset removes all slots and bookings in the configured database, then recreates an empty schema.
+## API
 
-## API endpoints
+- `GET /api/slots?serviceId=haircut` lists upcoming windows that fit the selected service.
+- `GET /api/host/slots` lists upcoming windows with booking and service details.
+- `POST /api/host/slots` creates a booking window.
+- `DELETE /api/host/slots/:id` deletes an unbooked window.
+- `POST /api/bookings` books a window with a service, name, and email.
 
-- `GET /api/slots` lists upcoming slots that do not have a booking.
-- `GET /api/host/slots` lists upcoming slots with their status and visitor details.
-- `POST /api/host/slots` creates a slot from a date, start time, and duration in minutes.
-- `DELETE /api/host/slots/:id` deletes an unbooked slot.
-- `POST /api/bookings` books a slot using a slot ID, visitor name, and visitor email.
+Invalid input returns HTTP 400, a missing window returns HTTP 404, and unavailable or overlapping windows return HTTP 409.
 
-Successful creates return HTTP 201.
-
-Invalid request bodies return HTTP 400.
-
-Missing slots return HTTP 404.
-
-Unavailable or overlapping slots and attempts to delete a booked slot return HTTP 409.
-
-Unexpected database failures return a generic HTTP 500 response, and temporary SQLite locks return HTTP 503.
-
-API errors use the shape `{ "error": { "code": "...", "message": "..." } }`.
+Database errors return a generic message without exposing internal details.
 
 ## Checks
 
-Run the database-backed API tests:
+Run the database-backed API and business-rule tests:
 
 ```bash
 npm test
@@ -155,34 +131,33 @@ Create a production build:
 npm run build
 ```
 
-The API tests cover slot creation, invalid input, overlap rejection, booking, duplicate and concurrent booking attempts, deletion rules, timezone edge cases, and public data privacy.
+Tests cover slot creation, invalid input, service duration checks, overlapping windows, duplicate and concurrent booking attempts, deletion rules, timezone edge cases, and public data privacy.
 
-## Deployment and storage
+## Deployment and limitations
 
-This repository uses a local SQLite file through `better-sqlite3`.
+This app uses a local SQLite file through `better-sqlite3`.
 
-For deployment, use a Node.js server with a durable disk and set `DATABASE_PATH` to a file on that disk.
+Deploy it to a Node.js server with a durable disk and set `DATABASE_PATH` to a file on that disk.
 
-Run `npm run db:migrate` as part of the release process before starting the new application version.
+Run `npm run db:migrate` during release before starting the new app version.
 
-A local SQLite file on a serverless platform such as Vercel is not a reliable shared or persistent database across instances and deployments.
+A local SQLite file on a serverless platform such as Vercel is not reliable shared storage across instances or deployments.
 
-This repository does not configure a remote database, so it is not ready for a multi-instance serverless deployment.
+The host dashboard has no login or authorization, so anyone who can reach it can change windows and view customer details.
 
-To use serverless hosting, replace the local driver with a shared database and update the database layer and deployment configuration.
+Do not expose the dashboard as a secure public admin interface.
 
-## AI tools
+There is no email confirmation, payment flow, customer account, or multiple-barber support.
 
-Codex assisted with implementation planning, code drafting, and running the requested checks.
+## AI coding tools
 
-The code and test results should be reviewed like any other contribution.
+OpenAI Codex assisted with implementation planning, code changes, and running checks.
 
-## Known limitations and next steps
+The application does not include an LLM feature.
 
-- The host page and host APIs have no authentication or authorization.
-- The application does not send email confirmations or reminders.
-- There is no rate limiting, email verification, or spam protection.
-- The current database driver uses a local SQLite file and needs durable shared storage for deployment.
-- The application supports one host and does not include accounts or calendar integrations.
+## What I would improve with more time
 
-Possible future work includes authentication, email notifications, rate limiting, and a remote shared database.
+- Add authentication before exposing the barber dashboard publicly.
+- Add email confirmations and cancellation handling.
+- Add a shared database before using a serverless deployment.
+- Add real screenshots after capturing the finished app.

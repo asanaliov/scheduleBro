@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { HostSlot } from "@/lib/types";
 import { formatScheduleDate, formatScheduleTime } from "@/lib/time";
+import { SERVICES, formatServicePrice } from "@/lib/services";
 
 type ApiError = {
   error?: { message?: string };
@@ -126,20 +127,20 @@ export default function HostDashboard({ initialSlots }: Props) {
   }
 
   return (
-    <main className="page-content host-content">
+    <main className="page-content host-content" id="main-content">
       <section className="page-intro host-intro">
-        <p className="eyebrow">Host workspace</p>
-        <h1>Make room in your schedule.</h1>
+        <p className="eyebrow">Schedule-Bro Barbershop · Barber desk</p>
+        <h1>Keep the chair moving.</h1>
         <p className="intro-copy">
-          Publish a time, then let Schedule-Bro take care of the booking.
+          Add booking windows and keep every appointment in one view.
         </p>
       </section>
 
       <div className="host-notice" role="note">
         <span className="notice-mark" aria-hidden="true">!</span>
         <p>
-          <strong>This host page has no login.</strong> Anyone who can open it can
-          manage availability and view booking details. Keep this MVP private.
+          <strong>This barber desk has no login.</strong> Anyone who can open it
+          can manage availability and view customer details. Keep this MVP private.
         </p>
       </div>
 
@@ -147,8 +148,8 @@ export default function HostDashboard({ initialSlots }: Props) {
         <section className="panel create-panel" aria-labelledby="create-title">
           <div className="panel-heading">
             <div>
-              <p className="eyebrow">New availability</p>
-              <h2 id="create-title">Add a time</h2>
+              <p className="eyebrow">New booking window</p>
+              <h2 id="create-title">Open the chair</h2>
             </div>
           </div>
 
@@ -172,7 +173,7 @@ export default function HostDashboard({ initialSlots }: Props) {
               value={startTime}
             />
 
-            <label className="field-label" htmlFor="slot-duration">Duration</label>
+            <label className="field-label" htmlFor="slot-duration">Window length</label>
             <select
               id="slot-duration"
               onChange={(event) => setDurationMinutes(Number(event.target.value))}
@@ -188,7 +189,8 @@ export default function HostDashboard({ initialSlots }: Props) {
             </select>
 
             <p className="field-hint">
-              Choose 15 to 240 minutes. Times use Europe/Skopje.
+              Choose 15 to 240 minutes. Services must fit inside the window, and
+              each window is reserved in full. Times use Europe/Skopje.
             </p>
 
             {message && (
@@ -201,7 +203,7 @@ export default function HostDashboard({ initialSlots }: Props) {
             )}
 
             <button className="primary-button full-button" disabled={saving}>
-              {saving ? "Publishing…" : "Publish availability"}
+              {saving ? "Opening…" : "Add booking window"}
             </button>
           </form>
         </section>
@@ -222,8 +224,8 @@ export default function HostDashboard({ initialSlots }: Props) {
 
           <div className="schedule-heading">
             <div>
-              <p className="eyebrow">Your calendar</p>
-              <h2 id="schedule-title">Upcoming times</h2>
+              <p className="eyebrow">The schedule</p>
+              <h2 id="schedule-title">Upcoming appointments</h2>
             </div>
             <div className="filter-tabs" role="group" aria-label="Filter times">
               {(["all", "available", "booked"] as const).map((option) => (
@@ -257,13 +259,16 @@ export default function HostDashboard({ initialSlots }: Props) {
               {visibleSlots.map((slot) => {
                 const isBooked = slot.visitorName !== null;
                 const timestamp = Date.parse(slot.startAt);
+                const service = slot.serviceId
+                  ? SERVICES.find((item) => item.id === slot.serviceId)
+                  : undefined;
 
                 return (
                   <article className="panel host-slot" key={slot.id}>
                     <div className="host-slot-time">
                       <p>{formatScheduleDate(timestamp)}</p>
                       <h3>{formatScheduleTime(timestamp)}</h3>
-                      <span>{slot.durationMinutes} minutes</span>
+                      <span>{slot.durationMinutes}-minute window</span>
                     </div>
                     <div className="host-slot-details">
                       <span className={`status-pill${isBooked ? " is-booked" : " is-open"}`}>
@@ -272,6 +277,12 @@ export default function HostDashboard({ initialSlots }: Props) {
                       </span>
                       {isBooked ? (
                         <div className="visitor-details">
+                          {service && (
+                            <span className="visitor-service">
+                              {service.name} · {slot.serviceDurationMinutes} min ·{" "}
+                              {formatServicePrice(slot.priceMkd ?? service.priceMkd)}
+                            </span>
+                          )}
                           <strong>{slot.visitorName}</strong>
                           <a href={`mailto:${slot.visitorEmail}`}>{slot.visitorEmail}</a>
                         </div>

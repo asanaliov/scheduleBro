@@ -4,8 +4,8 @@ import { listHostSlots } from "@/lib/server/schedule";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Host dashboard | Schedule-Bro",
-  description: "Publish and manage your Schedule-Bro availability.",
+  title: "Barber desk | Schedule-Bro",
+  description: "Manage Schedule-Bro Barbershop availability and bookings.",
 };
 
 export default function HostPage() {
