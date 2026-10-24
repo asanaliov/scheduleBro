@@ -22,8 +22,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </span>
             </Link>
             <nav className="site-nav" aria-label="Main navigation">
-              <Link href="/#services">Book a chair</Link>
-              <Link href="/host">Barber desk</Link>
+              <Link href="/#services">Book</Link>
+              <Link href="/host">Host desk</Link>
             </nav>
           </header>
           {children}

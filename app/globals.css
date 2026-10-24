@@ -128,13 +128,17 @@ select:focus-visible {
 .site-shell:has(.booking-page) .site-header {
   position: fixed;
   z-index: 10;
-  top: 0;
+  top: 14px;
   left: 50%;
-  width: min(1200px, calc(100% - 48px));
+  width: min(560px, calc(100% - 32px));
+  min-height: 52px;
+  padding: 0 16px;
   margin: 0;
-  border-bottom-color: rgb(245 244 242 / 16%);
-  background: rgb(15 14 12 / 88%);
-  backdrop-filter: blur(14px);
+  border: 1px solid rgb(42 35 26 / 12%);
+  border-radius: 999px;
+  background: rgb(246 239 226 / 90%);
+  box-shadow: 0 8px 28px rgb(49 39 26 / 10%);
+  backdrop-filter: blur(16px);
   opacity: var(--booking-nav-opacity, 0);
   pointer-events: none;
   transform: translate(-50%, var(--booking-nav-offset, -18px));
@@ -142,9 +146,51 @@ select:focus-visible {
   transition: opacity 180ms ease, transform 180ms ease;
 }
 
+.site-shell:has(.booking-page) .site-header .brand {
+  gap: 0;
+  color: var(--ink);
+  font-size: 13px;
+  letter-spacing: -0.025em;
+}
+
+.site-shell:has(.booking-page) .site-header .brand-mark,
+.site-shell:has(.booking-page) .site-header .brand-subtitle {
+  display: none;
+}
+
+.site-shell:has(.booking-page) .site-header .brand-copy {
+  display: block;
+}
+
+.site-shell:has(.booking-page) .site-header .site-nav {
+  gap: 3px;
+}
+
+.site-shell:has(.booking-page) .site-header .site-nav a {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #675b49;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.site-shell:has(.booking-page) .site-header .site-nav a:hover {
+  background: rgb(45 38 28 / 7%);
+  color: var(--ink);
+}
+
 html.booking-nav-ready .site-shell:has(.booking-page) .site-header {
   pointer-events: auto;
   visibility: visible;
+}
+
+.site-shell:has(.booking-page) .site-footer {
+  width: 100%;
+  min-height: 68px;
+  justify-content: center;
+  border-top: 1px solid #ddd1bf;
+  background: #e9e0d1;
+  color: #756958;
 }
 
 .brand {
@@ -223,6 +269,10 @@ html.booking-nav-ready .site-shell:has(.booking-page) .site-header {
 }
 
 .page-content.booking-page {
+  --page: #e9e0d1;
+  --surface-muted: #f0e7d8;
+  --line: #ddd1bf;
+  --line-strong: #cdbba1;
   padding-top: 0;
 }
 
@@ -280,8 +330,7 @@ html.booking-nav-ready .site-shell:has(.booking-page) .site-header {
   place-items: center;
   overflow: hidden;
   isolation: isolate;
-  background:
-    radial-gradient(ellipse at 50% 44%, #f5eddf 0, #e9e0d1 52%, #d7c8b2 100%);
+  background: #e9e0d1;
 }
 
 .reveal-grain {
@@ -1472,7 +1521,10 @@ html.booking-nav-ready .site-shell:has(.booking-page) .site-header {
   }
 
   .site-shell:has(.booking-page) .site-header {
-    width: min(1200px, calc(100% - 32px));
+    top: 10px;
+    width: min(560px, calc(100% - 24px));
+    min-height: 46px;
+    padding-inline: 10px;
   }
 
   .brand {
@@ -1492,6 +1544,11 @@ html.booking-nav-ready .site-shell:has(.booking-page) .site-header {
 
   .site-nav a {
     padding: 5px 5px;
+    font-size: 10px;
+  }
+
+  .site-shell:has(.booking-page) .site-header .site-nav a {
+    padding: 5px 7px;
     font-size: 10px;
   }
 
