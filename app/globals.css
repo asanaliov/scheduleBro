@@ -125,6 +125,28 @@ select:focus-visible {
   background: var(--shell-bg);
 }
 
+.site-shell:has(.booking-page) .site-header {
+  position: fixed;
+  z-index: 10;
+  top: 0;
+  left: 50%;
+  width: min(1200px, calc(100% - 48px));
+  margin: 0;
+  border-bottom-color: rgb(245 244 242 / 16%);
+  background: rgb(15 14 12 / 88%);
+  backdrop-filter: blur(14px);
+  opacity: var(--booking-nav-opacity, 0);
+  pointer-events: none;
+  transform: translate(-50%, var(--booking-nav-offset, -18px));
+  visibility: hidden;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+html.booking-nav-ready .site-shell:has(.booking-page) .site-header {
+  pointer-events: auto;
+  visibility: visible;
+}
+
 .brand {
   display: inline-flex;
   align-items: center;
@@ -177,6 +199,7 @@ select:focus-visible {
   font-weight: 600;
   letter-spacing: -0.01em;
   text-decoration: none;
+  white-space: nowrap;
   transition: color 120ms ease, background-color 120ms ease;
 }
 
@@ -197,6 +220,10 @@ select:focus-visible {
   /* Extend the light background to the full viewport width */
   box-shadow: 0 0 0 100vmax var(--page);
   clip-path: inset(0 -100vmax);
+}
+
+.page-content.booking-page {
+  padding-top: 0;
 }
 
 /* ─── Page intro ─── */
@@ -231,6 +258,282 @@ select:focus-visible {
   color: var(--ink-soft);
   font-size: 16px;
   line-height: 1.65;
+}
+
+/* ─── Scroll-open barbershop mark ─── */
+.barbershop-reveal {
+  --reveal-progress: 0;
+  position: relative;
+  width: 100vw;
+  height: 150svh;
+  margin-left: calc(50% - 50vw);
+  background: #e9e0d1;
+}
+
+.barbershop-reveal-stage {
+  position: sticky;
+  top: 0;
+  display: grid;
+  width: 100%;
+  height: 100svh;
+  min-height: 540px;
+  place-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 50% 44%, #f5eddf 0, #e9e0d1 52%, #d7c8b2 100%);
+}
+
+.reveal-grain {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgb(47 43 36 / 8%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 76% 68%, rgb(47 43 36 / 7%) 0 1px, transparent 1.5px);
+  background-size: 19px 23px, 29px 31px;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.reveal-lockup {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(520px, calc(100% - 40px));
+  align-items: center;
+  flex-direction: column;
+  padding: 24px 20px 34px;
+  text-align: center;
+}
+
+.reveal-kicker {
+  margin: 0 0 16px;
+  color: #72543b;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.reveal-portrait {
+  display: grid;
+  width: clamp(190px, 27vw, 300px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgb(32 30 26 / 24%);
+  border-radius: 50%;
+  background: #e7d6bb;
+  box-shadow:
+    0 0 0 8px rgb(231 214 187 / 60%),
+    0 0 0 9px rgb(32 30 26 / 15%),
+    0 22px 54px rgb(40 32 23 / 14%);
+}
+
+.reveal-portrait svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.reveal-name {
+  margin: 24px 0 0;
+  color: #171715;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(44px, 7vw, 76px);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+}
+
+.reveal-shop-name {
+  margin: 10px 0 0;
+  color: #655440;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.23em;
+  text-transform: uppercase;
+}
+
+.reveal-shop-name span {
+  padding: 0 4px;
+  color: #9f302c;
+}
+
+.reveal-tagline {
+  margin: 14px 0 0;
+  color: #756958;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.barber-shutter {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  width: 50%;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  background:
+    linear-gradient(90deg, #171817 0%, #222321 72%, #171817 100%);
+  box-shadow: 0 0 34px rgb(12 12 11 / 20%);
+  will-change: transform;
+}
+
+.barber-shutter-left {
+  left: 0;
+  transform: translateX(var(--left-offset, 0%));
+}
+
+.barber-shutter-right {
+  right: 0;
+  transform: translateX(var(--right-offset, 0%));
+  background:
+    linear-gradient(270deg, #171817 0%, #222321 72%, #171817 100%);
+}
+
+.shutter-word {
+  position: absolute;
+  top: 50%;
+  color: #c0b9a9;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  writing-mode: vertical-rl;
+}
+
+.barber-shutter-left .shutter-word {
+  left: clamp(20px, 5vw, 72px);
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.barber-shutter-right .shutter-word {
+  right: clamp(20px, 5vw, 72px);
+  transform: translateY(-50%);
+}
+
+.barber-pole {
+  position: absolute;
+  top: 50%;
+  display: block;
+  width: 62px;
+  height: min(60vh, 560px);
+  border: 7px solid #111211;
+  border-radius: 32px;
+  background: repeating-linear-gradient(
+    135deg,
+    #a23831 0 15px,
+    #f1e7d7 15px 30px,
+    #285b6b 30px 45px,
+    #f1e7d7 45px 60px
+  );
+  box-shadow: 0 9px 28px rgb(0 0 0 / 28%);
+  transform: translateY(-50%);
+}
+
+.barber-pole::before,
+.barber-pole::after {
+  position: absolute;
+  left: 50%;
+  width: 72px;
+  height: 18px;
+  border: 5px solid #111211;
+  border-radius: 999px;
+  background: #d4c7b4;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.barber-pole::before {
+  top: -13px;
+}
+
+.barber-pole::after {
+  bottom: -13px;
+}
+
+.barber-shutter-left .barber-pole {
+  right: 24px;
+}
+
+.barber-shutter-right .barber-pole {
+  left: 24px;
+}
+
+.shutter-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgb(238 227 207 / 20%);
+}
+
+.barber-shutter-left .shutter-edge {
+  right: 0;
+}
+
+.barber-shutter-right .shutter-edge {
+  left: 0;
+}
+
+.reveal-book-link {
+  position: absolute;
+  z-index: 5;
+  right: clamp(22px, 5vw, 68px);
+  bottom: clamp(80px, 10vh, 108px);
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 13px;
+  padding: 0 17px;
+  border: 1px solid rgb(242 232 214 / 40%);
+  border-radius: 999px;
+  background: #f2e8d6;
+  color: #191a18;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.reveal-book-link:hover {
+  background: #fff8eb;
+  transform: translateY(-2px);
+}
+
+.reveal-book-link span {
+  color: #9f302c;
+  font-size: 17px;
+  line-height: 1;
+}
+
+.reveal-scroll-cue {
+  position: absolute;
+  z-index: 5;
+  bottom: 88px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0;
+  color: #f1e7d7;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: var(--cue-opacity, 1);
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.reveal-scroll-cue span {
+  width: 32px;
+  height: 1px;
+  background: currentColor;
 }
 
 /* ─── Service section ─── */
@@ -1105,6 +1408,26 @@ select:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .reveal-lockup {
+    padding-inline: 16px;
+  }
+
+  .reveal-portrait {
+    width: clamp(180px, 32vw, 250px);
+  }
+
+  .barber-pole {
+    width: 52px;
+  }
+
+  .barber-shutter-left .barber-pole {
+    right: 14px;
+  }
+
+  .barber-shutter-right .barber-pole {
+    left: 14px;
+  }
+
   .booking-layout,
   .host-layout {
     grid-template-columns: 1fr;
@@ -1148,6 +1471,10 @@ select:focus-visible {
     min-height: 64px;
   }
 
+  .site-shell:has(.booking-page) .site-header {
+    width: min(1200px, calc(100% - 32px));
+  }
+
   .brand {
     gap: 8px;
     font-size: 14px;
@@ -1164,12 +1491,109 @@ select:focus-visible {
   }
 
   .site-nav a {
-    padding: 5px 8px;
-    font-size: 12px;
+    padding: 5px 5px;
+    font-size: 10px;
   }
 
   .page-content {
     padding: 36px 0 52px;
+  }
+
+  .page-content.booking-page {
+    padding-top: 0;
+  }
+
+  .barbershop-reveal {
+    height: 138svh;
+  }
+
+  .barbershop-reveal-stage {
+    min-height: 500px;
+  }
+
+  .reveal-lockup {
+    width: min(100% - 28px, 380px);
+    padding: 20px 10px 54px;
+  }
+
+  .reveal-kicker {
+    margin-bottom: 15px;
+    font-size: 9px;
+    letter-spacing: 0.19em;
+  }
+
+  .reveal-portrait {
+    width: clamp(164px, 47vw, 218px);
+  }
+
+  .reveal-name {
+    margin-top: 21px;
+    font-size: clamp(38px, 11vw, 54px);
+  }
+
+  .reveal-shop-name {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+  }
+
+  .reveal-tagline {
+    font-size: 12px;
+  }
+
+  .barber-pole {
+    width: 44px;
+    height: min(55vh, 420px);
+    border-width: 5px;
+  }
+
+  .barber-pole::before,
+  .barber-pole::after {
+    width: 54px;
+    height: 14px;
+    border-width: 4px;
+  }
+
+  .barber-shutter-left .barber-pole {
+    right: 9px;
+  }
+
+  .barber-shutter-right .barber-pole {
+    left: 9px;
+  }
+
+  .shutter-word {
+    font-size: 8px;
+    letter-spacing: 0.22em;
+  }
+
+  .barber-shutter-left .shutter-word {
+    left: 13px;
+  }
+
+  .barber-shutter-right .shutter-word {
+    right: 13px;
+  }
+
+  .reveal-book-link {
+    right: 16px;
+    bottom: 78px;
+    min-height: 40px;
+    gap: 8px;
+    padding-inline: 13px;
+    font-size: 11px;
+  }
+
+  .reveal-scroll-cue {
+    bottom: 88px;
+    left: 15px;
+    gap: 7px;
+    font-size: 7px;
+    letter-spacing: 0.12em;
+    transform: none;
+  }
+
+  .reveal-scroll-cue span {
+    width: 15px;
   }
 
   .page-intro {
@@ -1298,5 +1722,21 @@ select:focus-visible {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .barbershop-reveal {
+    height: 100svh;
+  }
+
+  .barber-shutter-left {
+    transform: translateX(-108%);
+  }
+
+  .barber-shutter-right {
+    transform: translateX(108%);
+  }
+
+  .reveal-scroll-cue {
+    display: none;
   }
 }
