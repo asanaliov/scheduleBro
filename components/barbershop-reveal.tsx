@@ -21,11 +21,16 @@ export default function BarbershopReveal() {
       const progress = scrollDistance > 0
         ? Math.min(1, Math.max(0, -sectionTop / scrollDistance))
         : 1;
+      const navProgress = Math.min(1, Math.max(0, (progress - 0.58) / 0.22));
+      const root = document.documentElement;
 
       section.style.setProperty("--left-offset", `${-progress * 108}%`);
       section.style.setProperty("--right-offset", `${progress * 108}%`);
       section.style.setProperty("--reveal-progress", String(progress));
       section.style.setProperty("--cue-opacity", String(Math.max(0, 1 - progress * 2)));
+      root.style.setProperty("--booking-nav-opacity", String(navProgress));
+      root.style.setProperty("--booking-nav-offset", `${-18 * (1 - navProgress)}px`);
+      root.classList.toggle("booking-nav-ready", navProgress >= 0.02);
     }
 
     function queueUpdate() {
@@ -42,6 +47,9 @@ export default function BarbershopReveal() {
       window.removeEventListener("scroll", queueUpdate);
       window.removeEventListener("resize", queueUpdate);
       if (frame !== 0) window.cancelAnimationFrame(frame);
+      document.documentElement.classList.remove("booking-nav-ready");
+      document.documentElement.style.removeProperty("--booking-nav-opacity");
+      document.documentElement.style.removeProperty("--booking-nav-offset");
     };
   }, []);
 
@@ -61,35 +69,54 @@ export default function BarbershopReveal() {
             role="img"
             aria-label="Illustration of a barber with a styled beard and glasses"
           >
-            <svg viewBox="0 0 300 320" aria-hidden="true">
-              <circle cx="150" cy="160" r="146" fill="#d3b38c" />
-              <circle cx="150" cy="160" r="132" fill="#e7d6bb" />
-              <path
-                d="M66 126c-4-53 31-91 83-91 48 0 85 34 85 88v40H66v-37Z"
-                fill="#181817"
-              />
-              <path
-                d="M82 133c0-35 28-63 68-63 41 0 70 28 70 66v61c0 41-27 67-70 67-42 0-68-26-68-67v-64Z"
-                fill="#e3bd96"
-              />
-              <path
-                d="M76 167c9 22 14 41 16 60 3 32 20 62 58 78 39-16 56-45 59-78 2-19 7-38 16-60-15 17-26 29-40 34-22 8-50 4-68-3-17-6-28-17-41-31Z"
-                fill="#181817"
-              />
-              <path
-                d="M80 132c7-34 34-53 70-53 30 0 54 13 69 37-19-4-32-13-44-24-13 17-41 28-95 25Z"
-                fill="#181817"
-              />
-              <path d="M104 149h41v25h-41a13 13 0 0 1 0-25Zm51 0h41a13 13 0 0 1 0 25h-41v-25Z" fill="#222221" />
-              <path d="M145 157h10" stroke="#222221" strokeWidth="7" strokeLinecap="round" />
-              <path d="M113 158h22m-22 7h22m26-7h22m-22 7h22" stroke="#d5b18a" strokeWidth="2" strokeLinecap="round" />
-              <path
-                d="M113 194c14-9 26-8 37 4 11-12 24-13 38-4-8 20-22 29-38 29-17 0-30-9-37-29Z"
-                fill="#181817"
-              />
-              <path d="M136 185h28l-7 19h-14l-7-19Z" fill="#c79870" />
-              <path d="M135 211c9 6 21 6 30 0" stroke="#e3bd96" strokeWidth="4" strokeLinecap="round" />
-              <path d="M72 137c-8-5-13 1-11 12 2 10 8 16 17 17m150-29c8-5 13 1 11 12-2 10-8 16-17 17" fill="#e3bd96" />
+            <svg viewBox="0 0 360 360" aria-hidden="true">
+              <defs>
+                <linearGradient id="portrait-skin" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#f1d2a8" />
+                  <stop offset="1" stopColor="#bd8761" />
+                </linearGradient>
+                <linearGradient id="portrait-beard" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stopColor="#34312d" />
+                  <stop offset="1" stopColor="#111211" />
+                </linearGradient>
+                <clipPath id="portrait-clip">
+                  <circle cx="180" cy="180" r="148" />
+                </clipPath>
+              </defs>
+              <circle cx="180" cy="180" r="177" fill="#171817" />
+              <circle cx="180" cy="180" r="168" fill="#c79f71" />
+              <circle cx="180" cy="180" r="158" fill="#f1e3cb" />
+              <circle cx="180" cy="180" r="148" fill="#d7c09d" />
+              <g clipPath="url(#portrait-clip)">
+                <g fill="none" stroke="#b69a6d" strokeWidth="4" opacity=".72">
+                  <path d="m46 292 77-78m114 0 77 78" />
+                  <circle cx="61" cy="292" r="15" />
+                  <circle cx="299" cy="292" r="15" />
+                </g>
+                <path d="M34 360c8-60 38-93 95-106h102c57 13 87 46 95 106H34Z" fill="#252725" />
+                <path d="m132 246 48 50 48-50-18-29h-60l-18 29Z" fill="#c5946c" />
+                <path d="m105 272 75 47 75-47-24-23-51 47-51-47-24 23Z" fill="#e1d4bd" />
+                <path d="m165 302 15 17 15-17-15-14-15 14Z" fill="#a23831" />
+
+                <path d="M95 143c-17-28-15-69 7-95 17-22 47-33 75-30 36-5 69 9 86 37 17 27 18 58 5 90l-21 29H111l-16-31Z" fill="#171817" />
+                <path d="M101 107c-5-34 18-68 52-76-13 13-17 25-17 38 18-23 49-37 81-29-18 4-31 13-38 25 27-11 53-7 72 11-23-3-42 1-57 11 20-3 39 5 51 19-27-11-49-10-69 4-23 16-49 20-75 11Z" fill="#302f2c" />
+                <path d="M122 91c-10 20-15 43-15 68v37c0 49 31 82 73 82s73-33 73-82v-37c0-25-6-47-17-65-28 19-72 26-114-3Z" fill="url(#portrait-skin)" />
+                <path d="M108 151c-10-7-18-2-17 10 1 13 8 23 20 24m138-34c10-7 18-2 17 10-1 13-8 23-20 24" fill="#c99169" />
+                <path d="M109 201c12 18 26 27 42 31 10 3 20 1 29-5 9 6 19 8 29 5 16-4 30-13 42-31-4 26-10 47-23 63-12 15-28 27-48 37-20-10-36-22-48-37-13-16-19-37-23-63Z" fill="url(#portrait-beard)" />
+                <path d="M119 221c8 8 17 13 29 16m93-16c-8 8-17 13-29 16" fill="none" stroke="#716b5f" strokeWidth="3" strokeLinecap="round" />
+                <path d="M118 151c11-10 25-13 41-8m42 0c16-5 30-2 41 8" fill="none" stroke="#3a2b23" strokeWidth="7" strokeLinecap="round" />
+                <path d="M121 164c8-7 19-9 30-4m57 0c11-5 22-3 30 4" fill="none" stroke="#231f1c" strokeWidth="4" strokeLinecap="round" />
+                <path d="M120 169c10-7 22-7 33 0v19c-10 8-22 8-33 0v-19Zm67 0c11-7 23-7 33 0v19c-10 8-22 8-33 0v-19Z" fill="#ede3d1" stroke="#171817" strokeWidth="5" />
+                <path d="M137 174c5 0 8 4 8 9s-3 8-8 8-8-3-8-8 3-9 8-9Zm67 0c5 0 8 4 8 9s-3 8-8 8-8-3-8-8 3-9 8-9Z" fill="#292723" />
+                <path d="M153 178h12m22 0h12" stroke="#171817" strokeWidth="5" strokeLinecap="round" />
+                <path d="M164 186c-1 15-9 25-7 31 2 6 10 8 17 5" fill="none" stroke="#8d6147" strokeWidth="4" strokeLinecap="round" />
+                <path d="M139 223c10-7 22-8 41 2 19-10 31-9 41-2-9 20-23 30-41 30s-32-10-41-30Z" fill="#302823" />
+                <path d="M121 211c16-11 30-10 48 5 5 4 9 6 11 6s6-2 11-6c18-15 32-16 48-5-7 12-17 19-31 22-11 2-20 0-28-6-8 6-17 8-28 6-14-3-24-10-31-22Z" fill="#171817" />
+                <path d="M151 250c6 17 16 31 29 42m29-42c-6 17-16 31-29 42" fill="none" stroke="#716b5f" strokeWidth="3" strokeLinecap="round" />
+                <path d="M180 257v33" fill="none" stroke="#716b5f" strokeWidth="2" strokeLinecap="round" />
+                <path d="M112 111c13 8 26 10 39 4m-31 10c10 6 20 7 30 3m76-17c-11 8-24 10-37 4m30 10c-10 6-20 7-30 3" fill="none" stroke="#777064" strokeWidth="2" strokeLinecap="round" opacity=".7" />
+                <path d="M114 267 73 314m132-29 66 53M244 268l40 44M153 290l-53 42" fill="none" stroke="#bfa77f" strokeWidth="3" opacity=".75" />
+              </g>
             </svg>
           </div>
           <h1 className="reveal-name">Schedule-Bro</h1>
