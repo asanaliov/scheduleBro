@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { PublicSlot } from "@/lib/types";
 import { SERVICES, formatServicePrice, type ServiceId } from "@/lib/services";
 import { formatScheduleDate, formatScheduleTime } from "@/lib/time";
+import BarbershopReveal from "@/components/barbershop-reveal";
 
 type ApiError = {
   error?: { message?: string };
@@ -171,17 +172,14 @@ export default function BookingExperience({
   }
 
   return (
-    <main className="page-content" id="main-content">
-      <section className="page-intro">
-        <p className="eyebrow">Schedule-Bro Barbershop · Skopje</p>
-        <h1>Good cuts. Easy booking.</h1>
-        <p className="intro-copy">
-          One barber, considered cuts, and a time that works for you. Choose
-          your service to see the right openings.
-        </p>
-      </section>
+    <main className="page-content booking-page" id="main-content">
+      <BarbershopReveal />
 
-      <section className="service-section" aria-labelledby="services-title">
+      <section
+        className="service-section"
+        id="services"
+        aria-labelledby="services-title"
+      >
         <div className="section-heading">
           <div>
             <p className="eyebrow">The menu</p>
