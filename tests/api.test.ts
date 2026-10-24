@@ -53,6 +53,16 @@ function requestWithJson(body: unknown): Request {
   });
 }
 
+function listPublicSlots(serviceId?: string): Response {
+  const url = new URL("http://localhost/api/slots");
+
+  if (serviceId) {
+    url.searchParams.set("serviceId", serviceId);
+  }
+
+  return publicSlotsRoute.GET(new Request(url));
+}
+
 function futureDate(daysFromToday: number): string {
   return time.scheduleDateValue(Date.now() + daysFromToday * 24 * 60 * 60 * 1000);
 }
@@ -66,12 +76,16 @@ function sqliteErrorHasCode(error: unknown, code: string): boolean {
   );
 }
 
-async function publishSlot(days: number, startTime = "10:00") {
+async function publishSlot(
+  days: number,
+  startTime = "10:00",
+  durationMinutes = 30,
+) {
   const response = await hostSlotsRoute.POST(
     requestWithJson({
       date: futureDate(days),
       startTime,
-      durationMinutes: 30,
+      durationMinutes,
     }),
   );
   const result = (await response.json()) as {
@@ -84,15 +98,20 @@ async function publishSlot(days: number, startTime = "10:00") {
   return result.data.id;
 }
 
-async function bookSlot(slotId: string, visitorName = "Taylor Example", visitorEmail = "taylor@example.com") {
+async function bookSlot(
+  slotId: string,
+  visitorName = "Taylor Example",
+  visitorEmail = "taylor@example.com",
+  serviceId = "haircut",
+) {
   return bookingsRoute.POST(
-    requestWithJson({ slotId, visitorName, visitorEmail }),
+    requestWithJson({ slotId, serviceId, visitorName, visitorEmail }),
   );
 }
 
 test("a host can publish a valid availability slot", async () => {
   const slotId = await publishSlot(2, "09:00");
-  const response = publicSlotsRoute.GET();
+  const response = listPublicSlots();
   const result = (await response.json()) as {
     data: { id: string; durationMinutes: number }[];
   };
@@ -153,13 +172,109 @@ test("invalid visitor names and email addresses are rejected", async () => {
   assert.equal(invalidEmail.status, 400);
 });
 
+test("service duration filters openings and is enforced when booking", async () => {
+  const shortWindowId = await publishSlot(5, "09:00", 30);
+  const longWindowId = await publishSlot(5, "10:00", 60);
+  const shortServiceSlots = await listPublicSlots("beard-trim").json() as {
+    data: { id: string }[];
+  };
+  const longServiceSlots = await listPublicSlots("haircut-beard").json() as {
+    data: { id: string }[];
+  };
+  const invalidServiceFilter = listPublicSlots("straight-razor");
+  const invalidServiceResponse = await bookingsRoute.POST(
+    requestWithJson({
+      slotId: shortWindowId,
+      serviceId: "straight-razor",
+      visitorName: "Taylor Example",
+      visitorEmail: "taylor@example.com",
+    }),
+  );
+  const tooLongServiceResponse = await bookSlot(
+    shortWindowId,
+    "Taylor Example",
+    "taylor@example.com",
+    "haircut-beard",
+  );
+  const validBookingResponse = await bookSlot(
+    longWindowId,
+    "Morgan Example",
+    "morgan@example.com",
+    "haircut-beard",
+  );
+  const validBooking = (await validBookingResponse.json()) as {
+    data: {
+      slot: { id: string };
+      visitorName: string;
+      serviceId: string;
+      serviceDurationMinutes: number;
+      priceMkd: number;
+    };
+  };
+
+  assert.equal(invalidServiceResponse.status, 400);
+  assert.equal(invalidServiceFilter.status, 400);
+  assert.equal(tooLongServiceResponse.status, 409);
+  assert.ok(shortServiceSlots.data.some((slot) => slot.id === shortWindowId));
+  assert.ok(shortServiceSlots.data.some((slot) => slot.id === longWindowId));
+  assert.ok(!longServiceSlots.data.some((slot) => slot.id === shortWindowId));
+  assert.ok(longServiceSlots.data.some((slot) => slot.id === longWindowId));
+  assert.equal(validBookingResponse.status, 201);
+  assert.equal(validBooking.data.slot.id, longWindowId);
+  assert.equal(validBooking.data.visitorName, "Morgan Example");
+  assert.equal(validBooking.data.serviceId, "haircut-beard");
+  assert.equal(validBooking.data.serviceDurationMinutes, 45);
+  assert.equal(validBooking.data.priceMkd, 1250);
+
+  assert.throws(
+    () => database.prepare(
+      `INSERT INTO bookings (
+         id, slot_id, visitor_name, visitor_email, service_id,
+         service_duration_minutes, price_mkd
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      randomUUID(),
+      shortWindowId,
+      "Direct Insert",
+      "direct@example.com",
+      "haircut-beard",
+      45,
+      1250,
+    ),
+    (error: unknown) => sqliteErrorHasCode(error, "SQLITE_CONSTRAINT_TRIGGER"),
+  );
+});
+
+test("booking requests from the original page default to Haircut", async () => {
+  const slotId = await publishSlot(8, "14:00", 60);
+  const response = await bookingsRoute.POST(
+    requestWithJson({
+      slotId,
+      visitorName: "Taylor Example",
+      visitorEmail: "taylor@example.com",
+    }),
+  );
+  const result = (await response.json()) as {
+    data?: {
+      serviceId: string;
+      serviceDurationMinutes: number;
+      priceMkd: number;
+    };
+  };
+
+  assert.equal(response.status, 201);
+  assert.equal(result.data?.serviceId, "haircut");
+  assert.equal(result.data?.serviceDurationMinutes, 30);
+  assert.equal(result.data?.priceMkd, 900);
+});
+
 test("a visitor can book a slot and the public list hides it", async () => {
   const slotId = await publishSlot(6, "11:00");
   const response = await bookSlot(slotId, " Taylor Example ", "TAYLOR@EXAMPLE.COM");
   const bookingResult = (await response.json()) as {
     data: { visitorName: string; slot: { id: string } };
   };
-  const publicResponse = publicSlotsRoute.GET();
+  const publicResponse = listPublicSlots();
   const publicResult = (await publicResponse.json()) as {
     data: Record<string, unknown>[];
   };

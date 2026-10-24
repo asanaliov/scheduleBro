@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { database } from "@/lib/server/database";
 import type { HostSlot, PublicSlot } from "@/lib/types";
+import { getService, type ServiceId } from "@/lib/services";
 import { skopjeLocalTimeToTimestamp } from "@/lib/time";
 
 export class ScheduleError extends Error {
@@ -10,7 +11,9 @@ export class ScheduleError extends Error {
       | "PAST_SLOT"
       | "SLOT_OVERLAP"
       | "SLOT_NOT_FOUND"
-      | "SLOT_UNAVAILABLE",
+      | "SLOT_UNAVAILABLE"
+      | "INVALID_SERVICE"
+      | "SERVICE_DOES_NOT_FIT",
     message: string,
   ) {
     super(message);
@@ -32,16 +35,20 @@ function toPublicSlot(row: SlotRow): PublicSlot {
   };
 }
 
-export function listAvailableSlots(now = Date.now()): PublicSlot[] {
-  const rows = database
-    .prepare(
-      `SELECT slots.id, slots.start_at_ms, slots.duration_minutes
-       FROM slots
-       LEFT JOIN bookings ON bookings.slot_id = slots.id
-       WHERE slots.start_at_ms > ? AND bookings.id IS NULL
-       ORDER BY slots.start_at_ms ASC`,
-    )
-    .all(now) as SlotRow[];
+export function listAvailableSlots(
+  serviceId?: ServiceId,
+  now = Date.now(),
+): PublicSlot[] {
+  const service = serviceId ? getService(serviceId) : undefined;
+  const sql = `SELECT slots.id, slots.start_at_ms, slots.duration_minutes
+     FROM slots
+     LEFT JOIN bookings ON bookings.slot_id = slots.id
+     WHERE slots.start_at_ms > ? AND bookings.id IS NULL
+     ${service ? "AND slots.duration_minutes >= ?" : ""}
+     ORDER BY slots.start_at_ms ASC`;
+  const rows = service
+    ? (database.prepare(sql).all(now, service.durationMinutes) as SlotRow[])
+    : (database.prepare(sql).all(now) as SlotRow[]);
 
   return rows.map(toPublicSlot);
 }
@@ -50,21 +57,29 @@ export function listHostSlots(now = Date.now()): HostSlot[] {
   const rows = database
     .prepare(
       `SELECT slots.id, slots.start_at_ms, slots.duration_minutes,
-              bookings.visitor_name, bookings.visitor_email
+              bookings.visitor_name, bookings.visitor_email,
+              bookings.service_id, bookings.service_duration_minutes,
+              bookings.price_mkd
        FROM slots
        LEFT JOIN bookings ON bookings.slot_id = slots.id
        WHERE slots.start_at_ms > ?
        ORDER BY slots.start_at_ms ASC`,
     )
     .all(now) as (SlotRow & {
-    visitor_name: string | null;
-    visitor_email: string | null;
-  })[];
+      visitor_name: string | null;
+      visitor_email: string | null;
+      service_id: ServiceId | null;
+      service_duration_minutes: number | null;
+      price_mkd: number | null;
+    })[];
 
   return rows.map((row) => ({
     ...toPublicSlot(row),
     visitorName: row.visitor_name,
     visitorEmail: row.visitor_email,
+    serviceId: row.service_id,
+    serviceDurationMinutes: row.service_duration_minutes,
+    priceMkd: row.price_mkd,
   }));
 }
 
@@ -134,9 +149,22 @@ export function createSlot(
 
 export function bookSlot(
   slotId: string,
+  serviceId: ServiceId,
   visitorName: string,
   visitorEmail: string,
-): { slot: PublicSlot; visitorName: string } {
+): {
+  slot: PublicSlot;
+  visitorName: string;
+  serviceId: ServiceId;
+  serviceDurationMinutes: number;
+  priceMkd: number;
+} {
+  const service = getService(serviceId);
+
+  if (!service) {
+    throw new ScheduleError("INVALID_SERVICE", "Choose one of the listed services.");
+  }
+
   const createWithinWriteLock = database.transaction(() => {
     const slot = database
       .prepare(
@@ -166,20 +194,50 @@ export function bookSlot(
       );
     }
 
+    if (slot.duration_minutes < service.durationMinutes) {
+      throw new ScheduleError(
+        "SERVICE_DOES_NOT_FIT",
+        "This time is too short for the selected service. Choose another time.",
+      );
+    }
+
     database
       .prepare(
-        `INSERT INTO bookings (id, slot_id, visitor_name, visitor_email)
-         VALUES (?, ?, ?, ?)`,
+        `INSERT INTO bookings (
+           id, slot_id, visitor_name, visitor_email, service_id,
+           service_duration_minutes, price_mkd
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(randomUUID(), slotId, visitorName, visitorEmail);
+      .run(
+        randomUUID(),
+        slotId,
+        visitorName,
+        visitorEmail,
+        service.id,
+        service.durationMinutes,
+        service.priceMkd,
+      );
 
     return { slot, visitorName };
   });
 
   try {
     const booking = createWithinWriteLock.immediate();
-    return { slot: toPublicSlot(booking.slot), visitorName: booking.visitorName };
+    return {
+      slot: toPublicSlot(booking.slot),
+      visitorName: booking.visitorName,
+      serviceId: service.id,
+      serviceDurationMinutes: service.durationMinutes,
+      priceMkd: service.priceMkd,
+    };
   } catch (error) {
+    if (isSqliteCode(error, "SQLITE_CONSTRAINT_TRIGGER")) {
+      throw new ScheduleError(
+        "SERVICE_DOES_NOT_FIT",
+        "This time is too short for the selected service. Choose another time.",
+      );
+    }
+
     if (isSqliteCode(error, "SQLITE_CONSTRAINT_UNIQUE")) {
       throw new ScheduleError(
         "SLOT_UNAVAILABLE",

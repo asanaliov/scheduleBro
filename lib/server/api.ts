@@ -52,6 +52,8 @@ export function handleApiError(error: unknown): Response {
       SLOT_OVERLAP: 409,
       SLOT_NOT_FOUND: 404,
       SLOT_UNAVAILABLE: 409,
+      INVALID_SERVICE: 400,
+      SERVICE_DOES_NOT_FIT: 409,
     };
 
     return apiError(error.code, error.message, statusByCode[error.code]);
