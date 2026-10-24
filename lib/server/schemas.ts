@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SERVICE_IDS } from "@/lib/services";
 
 export const createSlotSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
@@ -8,6 +9,7 @@ export const createSlotSchema = z.object({
 
 export const createBookingSchema = z.object({
   slotId: z.string().uuid(),
+  serviceId: z.enum(SERVICE_IDS).default("haircut"),
   visitorName: z
     .string()
     .trim()
@@ -23,3 +25,4 @@ export const createBookingSchema = z.object({
 });
 
 export const slotIdSchema = z.string().uuid();
+export const serviceIdSchema = z.enum(SERVICE_IDS);

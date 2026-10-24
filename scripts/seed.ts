@@ -29,11 +29,11 @@ try {
           .prepare(
             "INSERT INTO slots (id, start_at_ms, duration_minutes) VALUES (?, ?, ?)",
           )
-          .run(randomUUID(), startAtMs, 30);
+          .run(randomUUID(), startAtMs, 60);
       }
     }
 
-    console.log(`Added ${seeded} example slots. No visitor data was created.`);
+    console.log(`Added ${seeded} example booking windows. No visitor data was created.`);
   }
 } finally {
   database.close();
